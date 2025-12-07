@@ -10,7 +10,7 @@ import {
   Calendar,
   Eye,
 } from 'lucide-react';
-import { getReviewQueue, ReviewItem, approveRender } from '@/lib/api';
+import { getReviewQueue, approveRender, ReviewRender, toReviewItem, ReviewItem } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ReviewPage() {
@@ -23,7 +23,8 @@ export default function ReviewPage() {
     setLoading(true);
     const result = await getReviewQueue();
     if (result.data) {
-      setItems(result.data);
+      // Transform API response to ReviewItem format
+      setItems(result.data.map((r: ReviewRender) => toReviewItem(r)));
     }
     setLoading(false);
   };
@@ -112,6 +113,11 @@ export default function ReviewPage() {
                         >
                           {item.status}
                         </span>
+                        {item.qualityScore !== undefined && (
+                          <span className="text-gray-500">
+                            Score: {(item.qualityScore * 100).toFixed(0)}%
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -158,6 +164,11 @@ export default function ReviewPage() {
                   <p className="text-sm text-gray-500 mb-4">
                     Client: {selectedItem.clientName}
                   </p>
+                  {selectedItem.qualityScore !== undefined && (
+                    <p className="text-sm text-gray-500 mb-4">
+                      Quality Score: {(selectedItem.qualityScore * 100).toFixed(0)}%
+                    </p>
+                  )}
 
                   <div className="space-y-3 mb-6">
                     <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">

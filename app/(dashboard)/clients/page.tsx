@@ -11,12 +11,14 @@ import {
   MoreVertical,
   ExternalLink,
   Trash2,
+  FileVideo,
+  Play,
 } from 'lucide-react';
-import { getClients, Client } from '@/lib/api';
+import { getClients, ClientFull } from '@/lib/api';
 import { format } from 'date-fns';
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<ClientFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,6 +41,10 @@ export default function ClientsPage() {
       client.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.industry.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const formatIndustry = (industry: string) => {
+    return industry.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
 
   return (
     <>
@@ -103,7 +109,7 @@ export default function ClientsPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">{client.businessName}</h3>
-                      <p className="text-sm text-gray-500">{client.industry}</p>
+                      <p className="text-sm text-gray-500">{formatIndustry(client.industry)}</p>
                     </div>
                   </div>
                   <button className="p-1 text-gray-400 hover:text-gray-600">
@@ -116,10 +122,20 @@ export default function ClientsPage() {
                     <Tag className="h-4 w-4" />
                     <span>Tier: {client.tier}</span>
                   </div>
-                  {client.targetAudience && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users className="h-4 w-4" />
-                      <span>{client.targetAudience}</span>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users className="h-4 w-4" />
+                    <span>Audience: {client.primaryAudience}</span>
+                  </div>
+                  {client._count && (
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <FileVideo className="h-4 w-4" />
+                        {client._count.scripts} scripts
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Play className="h-4 w-4" />
+                        {client._count.renders} videos
+                      </span>
                     </div>
                   )}
                 </div>
@@ -128,10 +144,17 @@ export default function ClientsPage() {
                   <span className={`px-2 py-1 text-xs font-medium rounded ${
                     client.status === 'active'
                       ? 'bg-green-100 text-green-700'
+                      : client.status === 'paused'
+                      ? 'bg-amber-100 text-amber-700'
                       : 'bg-gray-100 text-gray-600'
                   }`}>
                     {client.status}
                   </span>
+                  {client.locations && client.locations.length > 0 && (
+                    <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700">
+                      {client.locations[0].island}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">

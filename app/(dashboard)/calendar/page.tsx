@@ -7,8 +7,9 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
+  Building2,
 } from 'lucide-react';
-import { getCalendar, getScheduled, CalendarItem, ScheduledItem } from '@/lib/api';
+import { getCalendar, getScheduled, getClients, CalendarEntry, ScheduledContent, ClientFull } from '@/lib/api';
 import {
   format,
   startOfMonth,
@@ -22,34 +23,85 @@ import {
   endOfWeek,
 } from 'date-fns';
 
+// UI type for calendar display
+interface CalendarDisplayItem {
+  id: string;
+  keyword: string;
+  scheduledTime: string;
+  platforms: string[];
+  status: string;
+}
+
+// UI type for scheduled list
+interface ScheduledDisplayItem {
+  id: string;
+  keyword: string;
+  scheduledTime: string;
+  platforms: string[];
+}
+
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
-  const [scheduled, setScheduled] = useState<ScheduledItem[]>([]);
+  const [calendarItems, setCalendarItems] = useState<CalendarDisplayItem[]>([]);
+  const [scheduled, setScheduled] = useState<ScheduledDisplayItem[]>([]);
+  const [clients, setClients] = useState<ClientFull[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  // Fetch clients on mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      const result = await getClients({ active: 'true' });
+      if (result.data && result.data.length > 0) {
+        setClients(result.data);
+        setSelectedClientId(result.data[0].id);
+      }
+    };
+    fetchClients();
+  }, []);
+
   const fetchData = async () => {
+    if (!selectedClientId) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
 
     const [calendarResult, scheduledResult] = await Promise.all([
-      getCalendar({
-        startDate: monthStart.toISOString(),
-        endDate: monthEnd.toISOString(),
+      getCalendar(selectedClientId, {
+        start: monthStart.toISOString(),
+        end: monthEnd.toISOString(),
       }),
-      getScheduled(),
+      getScheduled(selectedClientId),
     ]);
 
-    if (calendarResult.data) setCalendarItems(calendarResult.data);
-    if (scheduledResult.data) setScheduled(scheduledResult.data);
+    if (calendarResult.data) {
+      setCalendarItems(calendarResult.data.map((entry: CalendarEntry) => ({
+        id: entry.id,
+        keyword: entry.keyword,
+        scheduledTime: entry.scheduledFor,
+        platforms: entry.platforms,
+        status: entry.status,
+      })));
+    }
+    if (scheduledResult.data) {
+      setScheduled(scheduledResult.data.map((item: ScheduledContent) => ({
+        id: item.id,
+        keyword: `Render ${item.renderId.slice(0, 8)}`,
+        scheduledTime: item.scheduledFor,
+        platforms: item.platforms,
+      })));
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, [currentDate]);
+  }, [currentDate, selectedClientId]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -65,15 +117,39 @@ export default function CalendarPage() {
 
   const selectedDayItems = selectedDate ? getItemsForDay(selectedDate) : [];
 
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+
   return (
     <>
       <Header
         title="Content Calendar"
-        subtitle="Schedule and manage your posts"
+        subtitle={selectedClient ? `Schedule for ${selectedClient.businessName}` : "Schedule and manage your posts"}
         onRefresh={fetchData}
       />
 
       <div className="p-8">
+        {/* Client Selector */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <Building2 className="h-5 w-5 text-gray-400" />
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            >
+              {clients.length === 0 ? (
+                <option value="">No clients available</option>
+              ) : (
+                clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.businessName}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar */}
           <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">

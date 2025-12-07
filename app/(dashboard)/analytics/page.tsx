@@ -13,98 +13,134 @@ import {
   Lightbulb,
   AlertTriangle,
   CheckCircle,
+  Building2,
+  Hash,
+  Clock,
+  Video,
 } from 'lucide-react';
-import { getInsights, Insight } from '@/lib/api';
+import { getInsights, getClients, getPerformance, IndustryInsight, ClientFull, PerformanceData } from '@/lib/api';
 
 export default function AnalyticsPage() {
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const [insights, setInsights] = useState<IndustryInsight[]>([]);
+  const [clients, setClients] = useState<ClientFull[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [performance, setPerformance] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Demo data for now (real data would come from API with clientId)
-  const demoStats = {
-    views: 45230,
-    likes: 3420,
-    comments: 892,
-    shares: 567,
-    engagement: 8.4,
-    growth: 12.3,
-  };
+  // Fetch clients on mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      const result = await getClients({ active: 'true' });
+      if (result.data && result.data.length > 0) {
+        setClients(result.data);
+        setSelectedClientId(result.data[0].id);
+      }
+    };
+    fetchClients();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
-    const result = await getInsights();
-    if (result.data) {
-      setInsights(result.data);
+
+    // Fetch industry insights
+    const insightsResult = await getInsights();
+    if (insightsResult.data) {
+      setInsights(insightsResult.data);
     }
+
+    // Fetch performance data if client is selected
+    if (selectedClientId) {
+      const perfResult = await getPerformance(selectedClientId);
+      if (perfResult.data) {
+        setPerformance(perfResult.data);
+      }
+    }
+
     setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedClientId]);
 
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-amber-500" />;
-      default:
-        return <Lightbulb className="h-5 w-5 text-blue-500" />;
-    }
+  // Stats from performance data or defaults
+  const stats = performance?.totals ?? {
+    views: 0,
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    contentPieces: 0,
+    avgScore: '0',
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'border-l-red-500';
-      case 'medium':
-        return 'border-l-amber-500';
-      default:
-        return 'border-l-blue-500';
-    }
+  const formatIndustry = (industry: string) => {
+    return industry.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
+
+  const selectedClient = clients.find(c => c.id === selectedClientId);
 
   return (
     <>
       <Header
         title="Analytics"
-        subtitle="Performance insights across all clients"
+        subtitle={selectedClient ? `Performance for ${selectedClient.businessName}` : "Performance insights"}
         onRefresh={fetchData}
       />
 
       <div className="p-8">
+        {/* Client Selector */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <Building2 className="h-5 w-5 text-gray-400" />
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            >
+              {clients.length === 0 ? (
+                <option value="">No clients available</option>
+              ) : (
+                clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.businessName}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+        </div>
+
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             title="Total Views"
-            value={demoStats.views.toLocaleString()}
-            change="+12% from last week"
-            changeType="positive"
+            value={stats.views.toLocaleString()}
+            change={`${stats.contentPieces} content pieces`}
+            changeType="neutral"
             icon={Eye}
             iconColor="text-blue-600 bg-blue-100"
           />
           <StatCard
             title="Total Likes"
-            value={demoStats.likes.toLocaleString()}
-            change="+8% from last week"
-            changeType="positive"
+            value={stats.likes.toLocaleString()}
+            change={`Avg Score: ${stats.avgScore}`}
+            changeType="neutral"
             icon={Heart}
             iconColor="text-pink-600 bg-pink-100"
           />
           <StatCard
             title="Comments"
-            value={demoStats.comments.toLocaleString()}
-            change="+15% from last week"
-            changeType="positive"
+            value={stats.comments.toLocaleString()}
+            change="Engagement metric"
+            changeType="neutral"
             icon={MessageCircle}
             iconColor="text-purple-600 bg-purple-100"
           />
           <StatCard
             title="Shares"
-            value={demoStats.shares.toLocaleString()}
-            change="+5% from last week"
-            changeType="positive"
+            value={stats.shares.toLocaleString()}
+            change="Viral metric"
+            changeType="neutral"
             icon={Share2}
             iconColor="text-emerald-600 bg-emerald-100"
           />
@@ -141,28 +177,30 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
               <div className="text-center">
                 <p className="text-2xl font-bold text-gray-900">
-                  {demoStats.engagement}%
+                  {stats.avgScore}%
                 </p>
-                <p className="text-sm text-gray-500">Avg. Engagement</p>
+                <p className="text-sm text-gray-500">Avg. Quality Score</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-emerald-600">
-                  +{demoStats.growth}%
+                  {stats.contentPieces}
                 </p>
-                <p className="text-sm text-gray-500">Growth Rate</p>
+                <p className="text-sm text-gray-500">Content Pieces</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-gray-900">4.2</p>
-                <p className="text-sm text-gray-500">Avg. Posts/Day</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {performance?.byPlatform?.length || 0}
+                </p>
+                <p className="text-sm text-gray-500">Platforms</p>
               </div>
             </div>
           </div>
 
-          {/* AI Insights */}
+          {/* Industry Insights */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-amber-500" />
-              AI Insights
+              Industry Insights
             </h2>
 
             {loading ? (
@@ -213,18 +251,39 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {insights.map((insight) => (
                   <div
                     key={insight.id}
-                    className={`p-4 bg-gray-50 rounded-lg border-l-4 ${getPriorityColor(
-                      insight.priority
-                    )}`}
+                    className="p-4 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex items-start gap-3">
-                      {getInsightIcon(insight.type)}
-                      <p className="text-sm text-gray-700">{insight.message}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatIndustry(insight.industry)}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-auto">
+                        {insight.videosAnalyzed} videos analyzed
+                      </span>
                     </div>
+                    {insight.bestHookStyles && insight.bestHookStyles.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-xs text-gray-500 mb-1">Best Hook Styles:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {insight.bestHookStyles.slice(0, 3).map((style, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded">
+                              {style}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {insight.winningHashtags && insight.winningHashtags.length > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Hash className="h-3 w-3" />
+                        {insight.winningHashtags.slice(0, 3).join(', ')}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -232,33 +291,82 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Content Performance by Type */}
+        {/* Platform Performance */}
         <div className="mt-6 bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Content Performance by Type
+            Performance by Platform
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[
-              { type: 'Promotional', count: 45, engagement: 6.2, color: 'bg-blue-500' },
-              { type: 'Educational', count: 32, engagement: 8.1, color: 'bg-emerald-500' },
-              { type: 'Behind-the-Scenes', count: 28, engagement: 9.4, color: 'bg-purple-500' },
-              { type: 'Testimonial', count: 15, engagement: 7.8, color: 'bg-amber-500' },
-            ].map((item) => (
-              <div key={item.type} className="p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-3 h-3 rounded-full ${item.color}`} />
-                  <span className="text-sm font-medium text-gray-900">
-                    {item.type}
-                  </span>
+          {performance?.byPlatform && performance.byPlatform.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {performance.byPlatform.map((platform) => {
+                const platformColors: Record<string, string> = {
+                  tiktok: 'bg-pink-500',
+                  instagram: 'bg-purple-500',
+                  youtube: 'bg-red-500',
+                  facebook: 'bg-blue-500',
+                };
+                return (
+                  <div key={platform.platform} className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-3 h-3 rounded-full ${platformColors[platform.platform] || 'bg-gray-500'}`} />
+                      <span className="text-sm font-medium text-gray-900 capitalize">
+                        {platform.platform}
+                      </span>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">{platform.views.toLocaleString()}</p>
+                    <p className="text-sm text-gray-500">
+                      {platform.count} posts | {platform.avgScore}% score
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[
+                { platform: 'TikTok', color: 'bg-pink-500' },
+                { platform: 'Instagram', color: 'bg-purple-500' },
+                { platform: 'YouTube', color: 'bg-red-500' },
+                { platform: 'Facebook', color: 'bg-blue-500' },
+              ].map((item) => (
+                <div key={item.platform} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${item.color}`} />
+                    <span className="text-sm font-medium text-gray-900">
+                      {item.platform}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  <p className="text-sm text-gray-500">No data yet</p>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">{item.count}</p>
-                <p className="text-sm text-gray-500">
-                  {item.engagement}% engagement
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Top Content */}
+        {performance?.topContent && performance.topContent.length > 0 && (
+          <div className="mt-6 bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Top Performing Content
+            </h2>
+            <div className="space-y-3">
+              {performance.topContent.slice(0, 5).map((content, index) => (
+                <div key={content.renderId} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{content.keyword}</p>
+                    <p className="text-sm text-gray-500 capitalize">{content.platform}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{content.views.toLocaleString()} views</p>
+                    <p className="text-sm text-gray-500">{content.engagement.toLocaleString()} engagement</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

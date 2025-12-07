@@ -11,15 +11,15 @@ import {
   Filter,
   Sparkles,
 } from 'lucide-react';
-import { getRenders, getScripts, Render, Script } from '@/lib/api';
+import { getRenders, getScripts, RenderFull, ScriptFull } from '@/lib/api';
 import { format } from 'date-fns';
 
 type TabType = 'renders' | 'scripts';
 
 export default function ContentPage() {
   const [activeTab, setActiveTab] = useState<TabType>('renders');
-  const [renders, setRenders] = useState<Render[]>([]);
-  const [scripts, setScripts] = useState<Script[]>([]);
+  const [renders, setRenders] = useState<RenderFull[]>([]);
+  const [scripts, setScripts] = useState<ScriptFull[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
@@ -44,6 +44,7 @@ export default function ContentPage() {
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'pending':
       case 'processing':
+      case 'rendering':
         return <Clock className="h-4 w-4 text-amber-500" />;
       case 'failed':
         return <XCircle className="h-4 w-4 text-red-500" />;
@@ -58,6 +59,7 @@ export default function ContentPage() {
       approved: 'bg-green-100 text-green-700',
       pending: 'bg-amber-100 text-amber-700',
       processing: 'bg-blue-100 text-blue-700',
+      rendering: 'bg-blue-100 text-blue-700',
       failed: 'bg-red-100 text-red-700',
       draft: 'bg-gray-100 text-gray-700',
     };
@@ -145,6 +147,9 @@ export default function ContentPage() {
                       Duration
                     </th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Quality
+                    </th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -168,9 +173,14 @@ export default function ContentPage() {
                               <Play className="h-5 w-5 text-gray-400" />
                             )}
                           </div>
-                          <span className="font-medium text-gray-900">
-                            Video {render.id.slice(0, 8)}
-                          </span>
+                          <div>
+                            <span className="font-medium text-gray-900">
+                              {render.script?.keyword || `Video ${render.id.slice(0, 8)}`}
+                            </span>
+                            {render.client && (
+                              <p className="text-xs text-gray-500">{render.client.businessName}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -184,7 +194,10 @@ export default function ContentPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {render.duration ? `${render.duration}s` : '-'}
+                        {render.durationSeconds ? `${render.durationSeconds}s` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {render.qualityScore ? `${(render.qualityScore * 100).toFixed(0)}%` : '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {format(new Date(render.createdAt), 'MMM d, yyyy')}
@@ -219,8 +232,13 @@ export default function ContentPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900">{script.keyword}</h3>
                     <div className="flex items-center gap-3 mt-1">
+                      {script.client && (
+                        <span className="text-xs text-gray-500">
+                          {script.client.businessName}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-500">
-                        {script.voiceStyle}
+                        {script.voiceStyle || script.contentType || 'Standard'}
                       </span>
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
@@ -236,7 +254,20 @@ export default function ContentPage() {
                     {format(new Date(script.createdAt), 'MMM d, yyyy')}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{script.hook}</p>
+                <p className="text-sm text-gray-600 line-clamp-2">{script.hookText}</p>
+                <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                  <span>{script.wordCount} words</span>
+                  <span>~{script.estimatedDuration}s</span>
+                  {script.voiceover && (
+                    <span className={`px-2 py-0.5 rounded ${
+                      script.voiceover.status === 'completed'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      Voiceover: {script.voiceover.status}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
