@@ -16,7 +16,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
-import { getClients, createClient, ClientFull, CreateClientData } from '@/lib/api';
+import { getClients, createClient, deleteClient, ClientFull, CreateClientData } from '@/lib/api';
 import { format } from 'date-fns';
 
 const INDUSTRIES = [
@@ -57,6 +57,8 @@ export default function ClientsPage() {
     locations: [{ name: 'Main', island: 'Oahu', neighborhood: '' }],
     keywords: [],
   });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<ClientFull | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -99,6 +101,23 @@ export default function ClientsPage() {
       setFormError('An unexpected error occurred');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!showDeleteConfirm) return;
+    setDeletingId(showDeleteConfirm.id);
+
+    try {
+      const result = await deleteClient(showDeleteConfirm.id);
+      if (result.success) {
+        setClients(clients.filter(c => c.id !== showDeleteConfirm.id));
+        setShowDeleteConfirm(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete client:', error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -228,12 +247,29 @@ export default function ClientsPage() {
                     Added {format(new Date(client.createdAt), 'MMM d, yyyy')}
                   </span>
                   <div className="flex items-center gap-2">
-                    <button className="p-1.5 text-gray-400 hover:text-red-600 transition-colors">
-                      <Trash2 className="h-4 w-4" />
+                    <button
+                      onClick={() => setShowDeleteConfirm(client)}
+                      disabled={deletingId === client.id}
+                      className="p-1.5 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                      title="Delete client"
+                    >
+                      {deletingId === client.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </button>
-                    <button className="p-1.5 text-gray-400 hover:text-emerald-600 transition-colors">
-                      <ExternalLink className="h-4 w-4" />
-                    </button>
+                    {client.website && (
+                      <a
+                        href={client.website.startsWith('http') ? client.website : `https://${client.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-gray-400 hover:text-emerald-600 transition-colors"
+                        title="Visit website"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -448,6 +484,44 @@ export default function ClientsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Delete Client</h2>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete <strong>{showDeleteConfirm.businessName}</strong>?
+              This will also delete all associated scripts, videos, and analytics data. This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deletingId === showDeleteConfirm.id}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deletingId === showDeleteConfirm.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete Client
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -9,15 +9,32 @@ import {
   Clock,
   Calendar,
   Eye,
+  Loader2,
+  X,
 } from 'lucide-react';
-import { getReviewQueue, approveRender, ReviewRender, toReviewItem, ReviewItem } from '@/lib/api';
+import { getReviewQueue, approveRender, scheduleRender, ReviewRender, toReviewItem, ReviewItem } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
+
+const PLATFORMS = [
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'facebook', label: 'Facebook' },
+];
 
 export default function ReviewPage() {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Schedule modal state
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleItem, setScheduleItem] = useState<ReviewItem | null>(null);
+  const [schedulePlatforms, setSchedulePlatforms] = useState<string[]>(['tiktok', 'instagram']);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('12:00');
+  const [scheduling, setScheduling] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -41,6 +58,62 @@ export default function ReviewPage() {
       setSelectedItem(null);
     }
     setActionLoading(null);
+  };
+
+  const handleReject = async (id: string) => {
+    setActionLoading(id);
+    // For now, just remove from the queue since there's no reject API endpoint
+    // In production, this would call a reject API
+    setItems(items.filter((item) => item.id !== id));
+    if (selectedItem?.id === id) {
+      setSelectedItem(null);
+    }
+    setActionLoading(null);
+  };
+
+  const openScheduleModal = (item: ReviewItem) => {
+    setScheduleItem(item);
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setScheduleDate(tomorrow.toISOString().split('T')[0]);
+    setScheduleTime('12:00');
+    setSchedulePlatforms(['tiktok', 'instagram']);
+    setShowScheduleModal(true);
+  };
+
+  const handleSchedule = async () => {
+    if (!scheduleItem || schedulePlatforms.length === 0) return;
+    setScheduling(true);
+
+    try {
+      const scheduledFor = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+      const result = await scheduleRender(scheduleItem.id, {
+        platforms: schedulePlatforms,
+        scheduledFor,
+      });
+
+      if (result.success) {
+        // First approve, then the scheduled time is set
+        await approveRender(scheduleItem.id);
+        setItems(items.filter((item) => item.id !== scheduleItem.id));
+        setSelectedItem(null);
+        setShowScheduleModal(false);
+        setScheduleItem(null);
+      }
+    } catch (error) {
+      console.error('Failed to schedule:', error);
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const togglePlatform = (platform: string) => {
+    if (schedulePlatforms.includes(platform)) {
+      setSchedulePlatforms(schedulePlatforms.filter(p => p !== platform));
+    } else {
+      setSchedulePlatforms([...schedulePlatforms, platform]);
+    }
   };
 
   return (
@@ -128,12 +201,22 @@ export default function ReviewPage() {
                         }}
                         disabled={actionLoading === item.id}
                         className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Approve"
                       >
-                        <CheckCircle className="h-5 w-5" />
+                        {actionLoading === item.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-5 w-5" />
+                        )}
                       </button>
                       <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReject(item.id);
+                        }}
+                        disabled={actionLoading === item.id}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Reject"
                       >
                         <XCircle className="h-5 w-5" />
                       </button>
@@ -192,7 +275,10 @@ export default function ReviewPage() {
                         </>
                       )}
                     </button>
-                    <button className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    <button
+                      onClick={() => openScheduleModal(selectedItem)}
+                      className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
                       <Calendar className="h-4 w-4" />
                       Schedule
                     </button>
@@ -210,6 +296,110 @@ export default function ReviewPage() {
           </div>
         )}
       </div>
+
+      {/* Schedule Modal */}
+      {showScheduleModal && scheduleItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">Schedule Post</h2>
+              <button
+                onClick={() => {
+                  setShowScheduleModal(false);
+                  setScheduleItem(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">{scheduleItem.keyword}</p>
+                <p className="text-xs text-gray-500">{scheduleItem.clientName}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Platforms
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {PLATFORMS.map((platform) => (
+                    <button
+                      key={platform.value}
+                      type="button"
+                      onClick={() => togglePlatform(platform.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        schedulePlatforms.includes(platform.value)
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {platform.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Time (HST)
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowScheduleModal(false);
+                    setScheduleItem(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSchedule}
+                  disabled={scheduling || schedulePlatforms.length === 0 || !scheduleDate}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {scheduling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Scheduling...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="h-4 w-4" />
+                      Schedule Post
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
