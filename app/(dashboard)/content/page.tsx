@@ -169,7 +169,7 @@ export default function ContentPage() {
                             )}
                           </div>
                           <span className="font-medium text-gray-900">
-                            {render.title || `Video ${render.id.slice(0, 8)}`}
+                            Video {render.id.slice(0, 8)}
                           </span>
                         </div>
                       </td>
@@ -217,10 +217,10 @@ export default function ContentPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{script.title}</h3>
+                    <h3 className="font-semibold text-gray-900">{script.keyword}</h3>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs text-gray-500">
-                        {script.contentType}
+                        {script.voiceStyle}
                       </span>
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(
@@ -236,7 +236,7 @@ export default function ContentPage() {
                     {format(new Date(script.createdAt), 'MMM d, yyyy')}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{script.content}</p>
+                <p className="text-sm text-gray-600 line-clamp-2">{script.hook}</p>
               </div>
             ))}
           </div>

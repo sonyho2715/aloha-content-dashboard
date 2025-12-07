@@ -24,8 +24,8 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     const result = await getDashboardOverview();
-    if (result.error) {
-      setError(result.error);
+    if (!result.success || result.error) {
+      setError(result.error || 'Failed to load dashboard');
     } else if (result.data) {
       setOverview(result.data);
       setError(null);
@@ -79,38 +79,38 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             title="Active Clients"
-            value={overview?.activeClients || 0}
-            change={`${overview?.totalClients || 0} total`}
+            value={overview?.clients.active || 0}
+            change={`${overview?.clients.total || 0} total`}
             icon={Users}
             iconColor="text-blue-600 bg-blue-100"
           />
           <StatCard
-            title="Total Content"
-            value={overview?.totalContent || 0}
-            change={`${overview?.weeklyStats.scriptsGenerated || 0} scripts this week`}
+            title="Total Scripts"
+            value={overview?.content.scripts || 0}
+            change={`${overview?.thisMonth.scripts || 0} this month`}
             changeType="positive"
             icon={FileVideo}
             iconColor="text-purple-600 bg-purple-100"
           />
           <StatCard
             title="Pending Review"
-            value={overview?.pendingReview || 0}
+            value={overview?.content.pendingReview || 0}
             icon={Clock}
             iconColor="text-amber-600 bg-amber-100"
           />
           <StatCard
-            title="Published Today"
-            value={overview?.publishedToday || 0}
-            change={`${overview?.scheduledPosts || 0} scheduled`}
+            title="Published"
+            value={overview?.content.published || 0}
+            change={`${overview?.thisMonth.published || 0} this month`}
             icon={CheckCircle}
             iconColor="text-emerald-600 bg-emerald-100"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Weekly Stats */}
+          {/* This Month Stats */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">This Week</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">This Month</h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                   <span className="text-gray-600">Scripts Generated</span>
                 </div>
                 <span className="font-semibold text-gray-900">
-                  {overview?.weeklyStats.scriptsGenerated || 0}
+                  {overview?.thisMonth.scripts || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -131,7 +131,7 @@ export default function DashboardPage() {
                   <span className="text-gray-600">Videos Rendered</span>
                 </div>
                 <span className="font-semibold text-gray-900">
-                  {overview?.weeklyStats.videosRendered || 0}
+                  {overview?.thisMonth.renders || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                   <span className="text-gray-600">Posts Published</span>
                 </div>
                 <span className="font-semibold text-gray-900">
-                  {overview?.weeklyStats.postsPublished || 0}
+                  {overview?.thisMonth.published || 0}
                 </span>
               </div>
             </div>
@@ -162,16 +162,37 @@ export default function DashboardPage() {
                       <Calendar className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">{activity.message}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                      <p className="text-sm text-gray-900">
+                        <span className="font-medium">{activity.keyword}</span>
+                        {' - '}
+                        <span className="text-gray-600">{activity.client}</span>
                       </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          activity.status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : activity.status === 'approved'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {activity.status}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">No recent activity</p>
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No recent activity</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Add clients and generate content to see activity here
+                </p>
+              </div>
             )}
           </div>
         </div>

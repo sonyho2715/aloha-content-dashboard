@@ -5,6 +5,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://aloha-content-api-production.up.railway.app';
 
 interface ApiResponse<T> {
+  success: boolean;
   data?: T;
   error?: string;
 }
@@ -21,13 +22,13 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<Api
 
     if (!response.ok) {
       const errorText = await response.text();
-      return { error: errorText || `HTTP ${response.status}` };
+      return { success: false, error: errorText || `HTTP ${response.status}` };
     }
 
-    const data = await response.json();
-    return { data };
+    const result = await response.json();
+    return result;
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
@@ -157,90 +158,110 @@ export async function getInsights(params?: { clientId?: string }) {
   return fetchApi<Insight[]>(`/api/v1/analytics/insights${query ? `?${query}` : ''}`);
 }
 
-// Types
+// Types matching actual API responses
 export interface DashboardOverview {
-  totalClients: number;
-  activeClients: number;
-  totalContent: number;
-  pendingReview: number;
-  scheduledPosts: number;
-  publishedToday: number;
-  weeklyStats: {
-    scriptsGenerated: number;
-    videosRendered: number;
-    postsPublished: number;
+  clients: {
+    total: number;
+    active: number;
   };
-  recentActivity: Activity[];
+  content: {
+    scripts: number;
+    renders: number;
+    published: number;
+    pendingReview: number;
+  };
+  thisMonth: {
+    scripts: number;
+    renders: number;
+    published: number;
+  };
+  recentActivity: RecentActivity[];
+}
+
+export interface RecentActivity {
+  id: string;
+  keyword: string;
+  client: string;
+  status: string;
+  createdAt: string;
 }
 
 export interface ClientDashboard {
-  client: Client;
+  client: {
+    id: string;
+    businessName: string;
+    industry: string;
+    tier: string;
+    status: string;
+  };
   stats: {
     totalScripts: number;
     totalRenders: number;
-    pendingReview: number;
-    scheduled: number;
-    published: number;
+    activeKeywords: number;
+    scriptsThisMonth: number;
+    rendersCompleted: number;
+    rendersApproved: number;
+    avgQualityScore: string;
   };
-  recentContent: Render[];
+  performance: {
+    totalViews: number;
+    totalLikes: number;
+    totalComments: number;
+    totalShares: number;
+    avgEngagementScore: string;
+  };
 }
 
 export interface Pipeline {
   id: string;
   status: string;
   clientId: string;
-  clientName: string;
-  stage: string;
-  progress: number;
   startedAt: string;
+  scriptsGenerated: number;
+  voiceoversCreated: number;
+  videosRendered: number;
+  videosPublished: number;
 }
 
 export interface CostData {
-  totalCost: number;
-  breakdown: {
-    ai: number;
-    rendering: number;
-    storage: number;
-  };
-  byClient: { clientId: string; clientName: string; cost: number }[];
+  totalCost: string;
+  byService: { service: string; cost: string; operations: number }[];
+  daily: { date: string; cost: string }[];
 }
 
 export interface Client {
   id: string;
-  name: string;
-  businessType: string;
+  businessName: string;
   industry: string;
+  tier: string;
   targetAudience: string;
   status: string;
   createdAt: string;
-  keywords: string[];
-  platforms: string[];
 }
 
 export interface CreateClientData {
-  name: string;
-  businessType: string;
+  businessName: string;
   industry: string;
-  targetAudience: string;
-  keywords?: string[];
-  platforms?: string[];
+  tier?: string;
+  targetAudience?: string;
 }
 
 export interface Script {
   id: string;
   clientId: string;
-  title: string;
-  content: string;
-  contentType: string;
+  keyword: string;
+  hook: string;
+  body: string;
+  cta: string;
+  voiceStyle: string;
   status: string;
   createdAt: string;
 }
 
 export interface GenerateScriptData {
   clientId: string;
-  contentType: string;
-  topic?: string;
-  keywords?: string[];
+  keyword: string;
+  voiceStyle?: string;
 }
 
 export interface Render {
@@ -251,18 +272,19 @@ export interface Render {
   videoUrl?: string;
   thumbnailUrl?: string;
   duration?: number;
+  qualityScore?: number;
   createdAt: string;
-  title?: string;
 }
 
 export interface ReviewItem {
   id: string;
-  renderId: string;
+  scriptId: string;
   clientId: string;
   clientName: string;
-  title: string;
+  keyword: string;
   thumbnailUrl?: string;
   status: string;
+  qualityScore?: number;
   createdAt: string;
 }
 
@@ -270,7 +292,7 @@ export interface CalendarItem {
   id: string;
   clientId: string;
   clientName: string;
-  title: string;
+  keyword: string;
   scheduledTime: string;
   platforms: string[];
   status: string;
@@ -279,17 +301,9 @@ export interface CalendarItem {
 export interface ScheduledItem {
   id: string;
   clientId: string;
-  title: string;
+  keyword: string;
   scheduledTime: string;
   platforms: string[];
-}
-
-export interface Activity {
-  id: string;
-  type: string;
-  message: string;
-  clientId?: string;
-  createdAt: string;
 }
 
 export interface PerformanceData {

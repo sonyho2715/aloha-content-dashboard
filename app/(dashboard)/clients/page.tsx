@@ -24,7 +24,7 @@ export default function ClientsPage() {
   const fetchData = async () => {
     setLoading(true);
     const result = await getClients();
-    if (result.data) {
+    if (result.success && result.data) {
       setClients(result.data);
     }
     setLoading(false);
@@ -36,7 +36,7 @@ export default function ClientsPage() {
 
   const filteredClients = clients.filter(
     (client) =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.industry.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -102,7 +102,7 @@ export default function ClientsPage() {
                       <Building2 className="h-6 w-6 text-emerald-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{client.name}</h3>
+                      <h3 className="font-semibold text-gray-900">{client.businessName}</h3>
                       <p className="text-sm text-gray-500">{client.industry}</p>
                     </div>
                   </div>
@@ -114,44 +114,25 @@ export default function ClientsPage() {
                 <div className="space-y-3 mb-4">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Tag className="h-4 w-4" />
-                    <span>{client.businessType}</span>
+                    <span>Tier: {client.tier}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="h-4 w-4" />
-                    <span>{client.targetAudience}</span>
-                  </div>
+                  {client.targetAudience && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users className="h-4 w-4" />
+                      <span>{client.targetAudience}</span>
+                    </div>
+                  )}
                 </div>
 
-                {client.keywords && client.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-4">
-                    {client.keywords.slice(0, 3).map((keyword, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                    {client.keywords.length > 3 && (
-                      <span className="px-2 py-0.5 text-gray-500 text-xs">
-                        +{client.keywords.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {client.platforms && client.platforms.length > 0 && (
-                  <div className="flex gap-2 mb-4">
-                    {client.platforms.map((platform, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded"
-                      >
-                        {platform}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`px-2 py-1 text-xs font-medium rounded ${
+                    client.status === 'active'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {client.status}
+                  </span>
+                </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <span className="text-xs text-gray-400">

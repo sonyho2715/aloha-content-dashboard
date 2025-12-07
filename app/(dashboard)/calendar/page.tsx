@@ -154,7 +154,7 @@ export default function CalendarPage() {
                             key={item.id}
                             className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded truncate"
                           >
-                            {item.title}
+                            {item.keyword}
                           </div>
                         ))}
                         {dayItems.length > 2 && (
@@ -188,7 +188,7 @@ export default function CalendarPage() {
                         className="p-3 bg-gray-50 rounded-lg"
                       >
                         <h4 className="font-medium text-gray-900 text-sm">
-                          {item.title}
+                          {item.keyword}
                         </h4>
                         <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
                           <Clock className="h-3 w-3" />
@@ -236,7 +236,7 @@ export default function CalendarPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {item.title}
+                          {item.keyword}
                         </p>
                         <p className="text-xs text-gray-500">
                           {format(new Date(item.scheduledTime), 'h:mm a')}

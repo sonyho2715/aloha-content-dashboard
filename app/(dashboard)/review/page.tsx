@@ -36,7 +36,7 @@ export default function ReviewPage() {
     setActionLoading(id);
     const result = await approveRender(id);
     if (!result.error) {
-      setItems(items.filter((item) => item.renderId !== id));
+      setItems(items.filter((item) => item.id !== id));
       setSelectedItem(null);
     }
     setActionLoading(null);
@@ -91,7 +91,7 @@ export default function ReviewPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 mb-1">
-                        {item.title}
+                        {item.keyword}
                       </h3>
                       <p className="text-sm text-gray-500 mb-2">
                         {item.clientName}
@@ -118,9 +118,9 @@ export default function ReviewPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleApprove(item.renderId);
+                          handleApprove(item.id);
                         }}
-                        disabled={actionLoading === item.renderId}
+                        disabled={actionLoading === item.id}
                         className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
                       >
                         <CheckCircle className="h-5 w-5" />
@@ -153,7 +153,7 @@ export default function ReviewPage() {
                     )}
                   </div>
                   <h3 className="font-semibold text-gray-900 mb-2">
-                    {selectedItem.title}
+                    {selectedItem.keyword}
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
                     Client: {selectedItem.clientName}
@@ -168,11 +168,11 @@ export default function ReviewPage() {
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() => handleApprove(selectedItem.renderId)}
-                      disabled={actionLoading === selectedItem.renderId}
+                      onClick={() => handleApprove(selectedItem.id)}
+                      disabled={actionLoading === selectedItem.id}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                     >
-                      {actionLoading === selectedItem.renderId ? (
+                      {actionLoading === selectedItem.id ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                       ) : (
                         <>
